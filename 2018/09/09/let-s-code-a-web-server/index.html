@@ -1,0 +1,401 @@
+
+
+
+
+
+
+
+<!doctype html>
+<html lang="">
+<head>
+  <meta http-equiv="Content-Type" content="text/html" charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <meta name="author" content="John Doe">
+  
+  
+  
+  
+    <meta name="description" content="原文链接：Let’s code a web server from scratch with NodeJS Streams! 
+作者：Ziad Saab
+
+在这篇文章中，我将通过 node.js 的 stream 模块从零开始搭建一个简单的 web 服务器。在完成的过程中，我们会回顾 HTTP 请求和响应的结构，并且会对 Node’s Stream API 做一个简单介绍。
+首先，让我们快速...">
+  
+  <title>let's-code-a-web-server [ Hexo ]</title>
+  
+  
+    <link rel="shortcut icon" href="/favicon.ico">
+  
+  
+  <link rel="stylesheet" href="/css/random.css">
+<link rel="stylesheet" href="/css/vegas.min.css">
+<link rel="stylesheet" href="/css/highlight-railscasts.css">
+<link rel="stylesheet" href="/css/jquery.fancybox.css">
+<link rel="stylesheet" href="/css/iconfont/iconfont.css">
+<link rel="stylesheet" href="/css/jquery.fancybox-thumbs.css">
+<link rel="stylesheet" href="/css/plyr.css">
+  
+</head>
+
+<body>
+<div class="side-navigate hide-area">
+  
+  
+    <div class="item next">
+      <a href="/2018/09/09/hello-world/">
+        <div class="item-icon"></div>
+      </a>
+      <div class="item-title">
+        Hello World
+      </div>
+    </div>
+  
+</div>
+<div id="outer-container" class="hide-area">
+<div id="container">
+  <div id="menu-outer" class="slide-down">
+    <div id="menu-inner">
+      <div id="brand">
+        
+        <a onClick="openUserCard()">
+          <img id="avatar" src="http://7te9fe.com1.z0.glb.clouddn.com/default_avatar.jpg"/>
+          <div id="homelink">Hexo</div>
+        </a>
+      </div>
+      <div id="menu-list">
+        <ul>
+        
+        
+          
+            <li>
+          
+            <a href="/index.html">Home</a>
+            
+          </li>
+        
+          
+            <li>
+          
+            <a href="/archives">Archives</a>
+            
+          </li>
+        
+          
+            <li>
+          
+            <a href="/tags">Tags</a>
+            
+          </li>
+        
+          
+            <li>
+          
+            <a href="/categories">Categories</a>
+            
+          </li>
+        
+          
+            <li>
+          
+            <a href="/about">About</a>
+            
+          </li>
+        
+          
+            <li>
+          
+            <a href="https://github.com/stiekel/hexo-theme-random">Github</a>
+            
+          </li>
+        
+        </ul>
+      </div>
+      <div id="show-menu">
+        <button>Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="content-outer">
+    <div id="content-inner">
+      
+      
+  <article id="post">
+    <h1>let's-code-a-web-server</h1>
+    <p class="page-title-sub">
+      <span id = "post-title-date">Created at 2018-09-09</span>
+      
+        <span id = "post-title-updated">Updated at 2018-09-09</span>
+      
+      
+      
+    </p>
+    
+    <blockquote>
+<p>原文链接：<a href="https://www.codementor.io/ziad-saab/let-s-code-a-web-server-from-scratch-with-nodejs-streams-h4uc9utji" target="_blank" rel="noopener">Let’s code a web server from scratch with NodeJS Streams!</a> </p>
+<p>作者：<a href="https://www.codementor.io/ziad-saab" target="_blank" rel="noopener">Ziad Saab</a></p>
+</blockquote>
+<p>在这篇文章中，我将通过 node.js 的 <strong>stream</strong> 模块从零开始搭建一个简单的 web 服务器。在完成的过程中，我们会回顾 HTTP 请求和响应的结构，并且会对 <a href="http://nodejs.cn/api/stream.html" target="_blank" rel="noopener">Node’s Stream API</a> 做一个简单介绍。</p>
+<p>首先，让我们快速回顾一下 Node.js 内置的 <a href="https://nodejs.org/api/http.html" target="_blank" rel="noopener">http 模块</a>，通过它，我们会学习到一个 HTTP 请求和响应的大致结构。然后使用 Node.js 的 <code>net</code> 模块，创建一个简单的 TCP 服务器，并尝试通过它建立一个可用的 web 服务器。</p>
+<h3 id="Node-js-内置的-http-模块"><a href="#Node-js-内置的-http-模块" class="headerlink" title="Node.js 内置的 http 模块"></a>Node.js 内置的 http 模块</h3><p>Node.js 自带一个简单的 <code>http 服务器</code>。这个服务器允许我们去监听任意端口，并且对于每个 http 请求提供了一个回调函数去处理。</p>
+<p>这个回调函数接受两个参数：<a href="https://nodejs.org/dist/latest-v6.x/docs/api/http.html#http_class_http_incomingmessage" target="_blank" rel="noopener">request 对象</a> 和 <a href="https://nodejs.org/dist/latest-v6.x/docs/api/http.html#http_class_http_serverresponse" target="_blank" rel="noopener">response 对象</a>，request 对象包含 http 请求的相关信息，response 对象是我们要返回给客户端的内容。</p>
+<p>Node.js http 服务器使用案例：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> http = <span class="built_in">require</span>(<span class="string">'http'</span>);</span><br><span class="line"><span class="keyword">const</span> server = http.createServer();</span><br><span class="line">server.on(<span class="string">'request'</span>, (req, res) =&gt; &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;<span class="keyword">new</span> <span class="built_in">Date</span>().toISOString()&#125;</span> - <span class="subst">$&#123;req.method&#125;</span> <span class="subst">$&#123;req.url&#125;</span>`</span>);</span><br><span class="line">  res.setHeader(<span class="string">'Content-Type'</span>,<span class="string">'text/plain'</span>);</span><br><span class="line">  res.end(<span class="string">'Hello World!'</span>);</span><br><span class="line">&#125;);</span><br><span class="line">server.listen(<span class="number">3000</span>);</span><br></pre></td></tr></table></figure></p>
+<p>上面代码将会启动一个 web 服务器监听 3000 端口。当接收到一个 http 请求，会打印一段信息：当前的日期和请求的 <code>method、url</code>。<br>这些信息来源于 req 参数，它是 Node.js 创建的 request 对象，request 对象还有一个 <code>.socket</code> 属性，是一个简易的 <code>TCP socket</code>。</p>
+<p>接下来我们会创建一个 tcp 服务器，并且对于每一个新的连接都会直接访问 <code>socket</code>，然后通过它来创造我们的 web 服务器。<br>在上面的代码里，我们访问了 <code>req.method</code> 和 <code>req.url</code>，但是我们可能还会想要解析 request 其他内容。</p>
+<p>接下里这一节，我们先看看 HTTP 请求的结构，方便我们去解析它。</p>
+<h3 id="HTTP-解析"><a href="#HTTP-解析" class="headerlink" title="HTTP 解析"></a>HTTP 解析</h3><p>下面是一个简单的 http 请求：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">POST /posts/42/comments HTTP/1.1\r\n</span><br><span class="line">Host: www.my-api.com\r\n</span><br><span class="line">Accept: application/json\r\n</span><br><span class="line">Authorization: Bearer N2E5NTU2MzQ5MGQ4N2UzNjIxOTY2ZDU1M2YwNjA3OGFjYjgyMjU4NQ\r\n</span><br><span class="line">Accept-Encoding: gzip, deflate, br\r\n</span><br><span class="line">Content-Type: application/json\r\n</span><br><span class="line">Content-Length: 28\r\n</span><br><span class="line">User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:58.0)\r\n</span><br><span class="line">\r\n</span><br><span class="line">&#123;&quot;text&quot;:&quot;this is a comment&quot;&#125;</span><br></pre></td></tr></table></figure></p>
+<p>需要了解的点：</p>
+<ul>
+<li>每一行都使用 <code>\r\n</code> 分割开</li>
+<li>第一行被称作请求行，由三个部分组成<ul>
+<li>请求的方法， POST.<a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html" target="_blank" rel="noopener">标准的请求方法</a>。</li>
+<li>请求的 url：/posts/42/comments。</li>
+<li>http 协议版本：HTTP/1.1。</li>
+</ul>
+</li>
+<li>下面每一行都被称作一个请求头，由一个字段和它的值组成，通过 <code>:</code> 分开，<a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html" target="_blank" rel="noopener">标准的请求头</a>。</li>
+<li>有一行只有 <code>\r\n</code>，这一行标志着请求头的结束，在这之后的内容都是请求体。</li>
+<li>这个请求中，请求体是一个 JSON 对象，由 <code>Content-Type</code> 定义，这个 JSON 对象的长度是 28 字节，由  <code>Content-Length</code> 定义。</li>
+</ul>
+<p>下面是一个 http 响应：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">HTTP/1.1 200 OK\r\n</span><br><span class="line">Server: nginx/1.9.4\r\n</span><br><span class="line">Date: Fri, 20 Apr 2017 16:19:42 GMT\r\n</span><br><span class="line">Content-Type: application/json\r\n</span><br><span class="line">Content-Length: 141\r\n</span><br><span class="line">\r\n</span><br><span class="line">&#123;</span><br><span class="line">  &quot;id&quot;: &quot;8fh924b42o&quot;,</span><br><span class="line">  &quot;text&quot;: &quot;this is a comment&quot;,</span><br><span class="line">  &quot;createdAt&quot;: &quot;2017-04-20T16:19:42.840Z&quot;,</span><br><span class="line">  &quot;updatedAt&quot;: &quot;2017-04-20T16:19:42.840Z&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>同样的：</p>
+<ul>
+<li>就像 request，每一行由 <code>\r\n</code> 分开。</li>
+<li>第一行称作状态栏，组成：<ul>
+<li>HTTP 版本，HTTP/1.1.1。</li>
+<li><a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10" target="_blank" rel="noopener">HTTP 状态码</a>，200。</li>
+<li><a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html#sec6" target="_blank" rel="noopener">状态描述</a>，OK。</li>
+</ul>
+</li>
+<li>接下来的每一行都是一个响应头，和请求头的结构一样。</li>
+<li>有一行仅包含 <code>\r\n</code>，标志响应头的结束和响应体的开始。</li>
+<li>请求体是一个 114 字节的 JSON 对象，都在响应头中定义。</li>
+</ul>
+<p>接下来的一节，我们会创建一个 TCP 服务器让我们能够监听到 HTTP 请求，我们将会一步步的获取并且解析这个请求，然后通过 Streams 流返回一个响应。</p>
+<h3 id="接受并且解析一个-HTTP-请求"><a href="#接受并且解析一个-HTTP-请求" class="headerlink" title="接受并且解析一个 HTTP 请求"></a>接受并且解析一个 HTTP 请求</h3><blockquote>
+<p>Node.js 提供了内置的 net 模块创建一个流式的 tcp 服务器。”流式” 指的是服务器可以通过 <a href="https://nodejs.org/api/stream.html" target="_blank" rel="noopener">Nodejs Stream API</a> 发送和接收数据。</p>
+</blockquote>
+<p>http 服务器会在触发 request 事件时给回调函数绑定一个 request 对象和 response 对象，使用 <code>net</code> 模块创建的 tcp 服务器则会绑定一个 <code>Socket</code> 对象给 <code>connection</code> 事件回调函数，简而言之，这意味着它们都可以对数据进行读写。</p>
+<p>如果我们发送一个 HTTP 请求到我们的 TCP 服务器，读取 <code>socket</code>，我们会得到请求的内容，有两种方式可以读取一个可读的 stream：监听 <code>data</code> 事件或者直接调用 <code>.read()</code> 方法。让我们看看第一种方式：<br><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> net = <span class="built_in">require</span>(<span class="string">'net'</span>);</span><br><span class="line"><span class="keyword">const</span> server = net.createServer();</span><br><span class="line">server.on(<span class="string">'connection'</span>, handleConnection);</span><br><span class="line">server.listen(<span class="number">3000</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">handleConnection</span>(<span class="params">socket</span>) </span>&#123;</span><br><span class="line">  socket.on(<span class="string">'data'</span>, (chunk) =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'Received chunk:\n'</span>, chunk.toString());</span><br><span class="line">  &#125;);</span><br><span class="line">  socket.write(<span class="string">'HTTP/1.1 200 OK\r\nServer: my-web-server\r\nContent-Length: 0\r\n\r\n'</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>将这段代码放到一个叫 <code>server.js</code> 的文件中，通过你的命令行执行它： <code>node server.js</code>，然后在另一个命令行中，通过 <code>curl</code> 请求这个服务器：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -v localhost:3000/some/url</span><br></pre></td></tr></table></figure></p>
+<p>你会看到一个很长的输出，展示你的请求头和响应头。在 node 命令行中，你会看到下面的内容：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Received chunk:</span><br><span class="line">GET /some/url HTTP/1.1</span><br><span class="line">Host: localhost:3000</span><br><span class="line">User-Agent: curl/7.54.0</span><br><span class="line">Accept: */*</span><br></pre></td></tr></table></figure></p>
+<p>通过 post 请求发送一些数据：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -v -XPOST -d&apos;hello=world&apos; localhost:3000/some/url</span><br></pre></td></tr></table></figure></p>
+<p>在 node 命令行中接收到这些输出：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Received chunk:</span><br><span class="line">POST /some/url HTTP/1.1</span><br><span class="line">Host: localhost:3000</span><br><span class="line">User-Agent: curl/7.54.0</span><br><span class="line">Accept: */*</span><br><span class="line">Content-Length: 11</span><br><span class="line">Content-Type: application/x-www-form-urlencoded</span><br><span class="line"></span><br><span class="line">hello=world</span><br></pre></td></tr></table></figure></p>
+<p>如果你发送一个更长的请求体，你应该通过多个 chunks 去接收它，但是一个 web server 并不总是需要去解析一个请求体。</p>
+<p>很多时候，请求头部分已经足够去处理这个请求了。如果我们要编写一个通用的 web server，我们需要一种方式去停止从 socket 中接收 <code>\r\n</code> 以后的 request 数据。</p>
+<p>如果我们需要控制什么时候停止从 Stream 中拿取数据，我们可以使用 <code>socket</code> 的 <code>.read()</code> 方法，下面是一些代码：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> net = <span class="built_in">require</span>(<span class="string">'net'</span>);</span><br><span class="line"><span class="keyword">const</span> server = net.createServer();</span><br><span class="line">server.on(<span class="string">'connection'</span>, handleConnection);</span><br><span class="line">server.listen(<span class="number">3000</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">handleConnection</span>(<span class="params">socket</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 监听一次 readable 事件，回调函数中调用 .read()</span></span><br><span class="line">  socket.once(<span class="string">'readable'</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 声明一个 buffer 存储 request 数据</span></span><br><span class="line">    <span class="keyword">let</span> reqBuffer = <span class="keyword">new</span> Buffer(<span class="string">''</span>);</span><br><span class="line">    <span class="comment">// 声明一个临时的 buffer 从 socket 中读取数据</span></span><br><span class="line">    <span class="keyword">let</span> buf;</span><br><span class="line">    <span class="keyword">let</span> reqHeader;</span><br><span class="line">    <span class="keyword">while</span>(<span class="literal">true</span>) &#123;</span><br><span class="line">      <span class="comment">// 从 socket 中读取数据</span></span><br><span class="line">      buf = socket.read();</span><br><span class="line">      <span class="comment">// 如果没有数据可再次读取，结束循环</span></span><br><span class="line">      <span class="keyword">if</span> (buf === <span class="literal">null</span>) <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 将新数据存入 reqBuffer 中</span></span><br><span class="line">      reqBuffer = Buffer.concat([reqBuffer, buf]);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 检查是否读取到 \r\n\r\n （请求头的结束）</span></span><br><span class="line">      <span class="keyword">let</span> marker = reqBuffer.indexOf(<span class="string">'\r\n\r\n'</span>)</span><br><span class="line">      <span class="keyword">if</span> (marker !== <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="comment">// 如果读取到 \ r\n\r\n，获取它之后的额外数据</span></span><br><span class="line">        <span class="keyword">let</span> remaining = reqBuffer.slice(marker + <span class="number">4</span>);</span><br><span class="line">        <span class="comment">// 请求头是我们读取到所有数据，在 \ r\n\r\n 之前，不包括 \r\n</span></span><br><span class="line">        reqHeader = reqBuffer.slice(<span class="number">0</span>, marker).toString();</span><br><span class="line">        <span class="comment">// 将额外的数据放回到 socket 中</span></span><br><span class="line">        socket.unshift(remaining);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">`Request header:\n<span class="subst">$&#123;reqHeader&#125;</span>`</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 此时，我们停止从 socket 中读取数据，且获取到了请求头字符串</span></span><br><span class="line">    <span class="comment">// 如果我们还想要获取请求体，我们可以这样做:</span></span><br><span class="line"></span><br><span class="line">    reqBuffer = <span class="keyword">new</span> Buffer(<span class="string">''</span>);</span><br><span class="line">    <span class="keyword">while</span>((buf = socket.read()) !== <span class="literal">null</span>) &#123;</span><br><span class="line">      reqBuffer = Buffer.concat([reqBuffer, buf]);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> reqBody = reqBuffer.toString();</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">`Request body:\n<span class="subst">$&#123;reqBody&#125;</span>`</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 返回一个响应</span></span><br><span class="line">    socket.end(<span class="string">'HTTP/1.1 200 OK\r\nServer: my-custom-server\r\nContent-Length: 0\r\n\r\n'</span>);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>代码有点长，因为我们需要一些逻辑去决定是否停止从 stream 中读取数据。我们将请求头和请求体分开，让使用我们的 web server 的开发者去决定如何对请求操作。</p>
+<p>关键的部分是 <code>socket.unshift</code>，往这个可读流中放回额外的数据。它让使用我们 web server 的用户可以继续获取请求体的数据从 <code>socket</code> 中。</p>
+<p>下面是我们这个简单的 web server 完整的代码，将前面的所有内容合并在一起。通过函数 <code>createWebServer(requestHandler)</code> 暴露出我们的服务器，这个函数接收一个处理器，例如:<code>(req, res) =&gt; void</code>，就像 Node 的 web 服务器，代码中的注释解释了每一个步骤的内容：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> net = <span class="built_in">require</span>(<span class="string">'net'</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">createWebServer</span>(<span class="params">requestHandler</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">const</span> server = net.createServer();</span><br><span class="line">  server.on(<span class="string">'connection'</span>, handleConnection);</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">function</span> <span class="title">handleConnection</span>(<span class="params">socket</span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 监听一次 readable 事件，调用. read()</span></span><br><span class="line">    socket.once(<span class="string">'readable'</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">      <span class="comment">// 声明一个 buffer 存储 request 数据</span></span><br><span class="line">      <span class="keyword">let</span> reqBuffer = <span class="keyword">new</span> Buffer(<span class="string">''</span>);</span><br><span class="line">      <span class="comment">// 声明一个临时的 buffer 从 socket 中读取数据</span></span><br><span class="line">      <span class="keyword">let</span> buf;</span><br><span class="line">      <span class="keyword">let</span> reqHeader;</span><br><span class="line">      <span class="keyword">while</span>(<span class="literal">true</span>) &#123;</span><br><span class="line">        <span class="comment">// 从 socket 中读取数据</span></span><br><span class="line">        buf = socket.read();</span><br><span class="line">        <span class="comment">// 如果没有数据可再次读取，结束循环</span></span><br><span class="line">        <span class="keyword">if</span> (buf === <span class="literal">null</span>) <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 将新数据存入 reqBuffer 中</span></span><br><span class="line">        reqBuffer = Buffer.concat([reqBuffer, buf]);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 检查是否读取到 \r\n\r\n （请求头的结束）</span></span><br><span class="line">        <span class="keyword">let</span> marker = reqBuffer.indexOf(<span class="string">'\r\n\r\n'</span>)</span><br><span class="line">        <span class="keyword">if</span> (marker !== <span class="number">-1</span>) &#123;</span><br><span class="line">          <span class="comment">// 如果读取到 \ r\n\r\n，获取它之后的额外数据</span></span><br><span class="line">          <span class="keyword">let</span> remaining = reqBuffer.slice(marker + <span class="number">4</span>);</span><br><span class="line">          <span class="comment">// 请求头是我们读取到所有数据，在 \ r\n\r\n 之前，不包括 \r\n</span></span><br><span class="line">          reqHeader = reqBuffer.slice(<span class="number">0</span>, marker).toString();</span><br><span class="line">          <span class="comment">// 将额外的数据放回到 socket 中</span></span><br><span class="line">          socket.unshift(remaining);</span><br><span class="line">          <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* 请求相关业务 */</span></span><br><span class="line">      <span class="comment">// 开始解析请求头</span></span><br><span class="line">      <span class="keyword">const</span> reqHeaders = reqHeader.split(<span class="string">'\r\n'</span>);</span><br><span class="line">      <span class="comment">// 第一行比较特殊</span></span><br><span class="line">      <span class="keyword">const</span> reqLine = reqHeaders.shift().split(<span class="string">' '</span>);</span><br><span class="line">      <span class="comment">// 接下来的每一行都是一个请求头，创建一个对象存储它</span></span><br><span class="line">      <span class="keyword">const</span> headers = reqHeaders.reduce(<span class="function">(<span class="params">acc, currentHeader</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> [key, value] = currentHeader.split(<span class="string">':'</span>);</span><br><span class="line">        <span class="keyword">return</span> &#123;</span><br><span class="line">          ...acc,</span><br><span class="line">          [key.trim().toLowerCase()]: value.trim()</span><br><span class="line">        &#125;;</span><br><span class="line">      &#125;, &#123;&#125;);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 这个对象会被传入请求处理函数中</span></span><br><span class="line">      <span class="keyword">const</span> request = &#123;</span><br><span class="line">        method: reqLine[<span class="number">0</span>],</span><br><span class="line">        url: reqLine[<span class="number">1</span>],</span><br><span class="line">        httpVersion: reqLine[<span class="number">2</span>].split(<span class="string">'/'</span>)[<span class="number">1</span>],</span><br><span class="line">        headers,</span><br><span class="line">        <span class="comment">// 使用这个 web 服务器的用户可以直接从 socket 中获取请求体数据</span></span><br><span class="line">        socket</span><br><span class="line">      &#125;;</span><br><span class="line"></span><br><span class="line">      <span class="comment">/* 响应相关业务 */</span></span><br><span class="line">      <span class="comment">// 初始化值</span></span><br><span class="line">      <span class="keyword">let</span> status = <span class="number">200</span>, statusText = <span class="string">'OK'</span>, headersSent = <span class="literal">false</span>, isChunked = <span class="literal">false</span>;</span><br><span class="line">      <span class="keyword">const</span> responseHeaders = &#123;</span><br><span class="line">        server: <span class="string">'my-custom-server'</span></span><br><span class="line">      &#125;;</span><br><span class="line"></span><br><span class="line">      <span class="function"><span class="keyword">function</span> <span class="title">setHeader</span>(<span class="params">key, value</span>) </span>&#123;</span><br><span class="line">        responseHeaders[key.toLowerCase()] = value;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="function"><span class="keyword">function</span> <span class="title">sendHeaders</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="comment">// 只触发一次</span></span><br><span class="line">        <span class="keyword">if</span> (!headersSent) &#123;</span><br><span class="line">          headersSent = <span class="literal">true</span>;</span><br><span class="line">          <span class="comment">// 添加 date 响应头</span></span><br><span class="line">          setHeader(<span class="string">'date'</span>, <span class="keyword">new</span> <span class="built_in">Date</span>().toGMTString());</span><br><span class="line">          <span class="comment">// 将状态栏存入 socket 中</span></span><br><span class="line">          socket.write(<span class="string">`HTTP/1.1 <span class="subst">$&#123;status&#125;</span> <span class="subst">$&#123;statusText&#125;</span>\r\n`</span>);</span><br><span class="line">          <span class="comment">// 将所有的响应头存入 socket 中</span></span><br><span class="line">          <span class="built_in">Object</span>.keys(responseHeaders).forEach(<span class="function"><span class="params">headerKey</span> =&gt;</span> &#123;</span><br><span class="line">            socket.write(<span class="string">`<span class="subst">$&#123;headerKey&#125;</span>: <span class="subst">$&#123;responseHeaders[headerKey]&#125;</span>\r\n`</span>);</span><br><span class="line">          &#125;);</span><br><span class="line">          <span class="comment">// 存入 \r\n 在 socket 中分割响应头和响应体</span></span><br><span class="line">          socket.write(<span class="string">'\r\n'</span>);</span><br><span class="line">        &#125;</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="comment">// response 对象</span></span><br><span class="line">      <span class="keyword">const</span> response = &#123;</span><br><span class="line">        write(chunk) &#123;</span><br><span class="line">          <span class="keyword">if</span> (!headersSent) &#123;</span><br><span class="line">            <span class="comment">// 如果没有 content-length 响应头，定义 Transfer-Encoding 响应头为 chunked</span></span><br><span class="line">            <span class="keyword">if</span> (!responseHeaders[<span class="string">'content-length'</span>]) &#123;</span><br><span class="line">              isChunked = <span class="literal">true</span>;</span><br><span class="line">              setHeader(<span class="string">'transfer-encoding'</span>, <span class="string">'chunked'</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            sendHeaders();</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">if</span> (isChunked) &#123;</span><br><span class="line">            <span class="keyword">const</span> size = chunk.length.toString(<span class="number">16</span>);</span><br><span class="line">            socket.write(<span class="string">`<span class="subst">$&#123;size&#125;</span>\r\n`</span>);</span><br><span class="line">            socket.write(chunk);</span><br><span class="line">            socket.write(<span class="string">'\r\n'</span>);</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">else</span> &#123;</span><br><span class="line">            socket.write(chunk);</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        end(chunk) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!headersSent) &#123;</span><br><span class="line">                <span class="comment">// 设置响应的 content-length</span></span><br><span class="line">                <span class="keyword">if</span> (!responseHeaders[<span class="string">'content-length'</span>]) &#123;</span><br><span class="line">                    <span class="comment">// 假设 chunk 是一个 buffer，不是一个字符串!</span></span><br><span class="line">                    setHeader(<span class="string">'content-length'</span>, chunk ? chunk.length : <span class="number">0</span>);</span><br><span class="line">                &#125;</span><br><span class="line">                sendHeaders();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (isChunked) &#123;</span><br><span class="line">                <span class="keyword">if</span> (chunk) &#123;</span><br><span class="line">                <span class="keyword">const</span> size = (chunk.length).toString(<span class="number">16</span>);</span><br><span class="line">                socket.write(<span class="string">`<span class="subst">$&#123;size&#125;</span>\r\n`</span>);</span><br><span class="line">                socket.write(chunk);</span><br><span class="line">                socket.write(<span class="string">'\r\n'</span>);</span><br><span class="line">                &#125;</span><br><span class="line">                socket.end(<span class="string">'0\r\n\r\n'</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">else</span> &#123;</span><br><span class="line">                socket.end(chunk);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        setHeader,</span><br><span class="line">        setStatus(newStatus, newStatusText) &#123; status = newStatus, statusText = newStatusText &#125;,</span><br><span class="line">        <span class="comment">// 通过服务器发送 JSON</span></span><br><span class="line">        json(data) &#123;</span><br><span class="line">            <span class="keyword">if</span> (headersSent) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'Headers sent, cannot proceed to send JSON'</span>);</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">const</span> json = <span class="keyword">new</span> Buffer(<span class="built_in">JSON</span>.stringify(data));</span><br><span class="line">          setHeader(<span class="string">'content-type'</span>, <span class="string">'application/json; charset=utf-8'</span>);</span><br><span class="line">          setHeader(<span class="string">'content-length'</span>, json.length);</span><br><span class="line">          sendHeaders();</span><br><span class="line">          socket.end(json);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 传递 request 和 response 给处理器函数</span></span><br><span class="line">      requestHandler(request, response);</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> &#123;</span><br><span class="line">    listen: <span class="function">(<span class="params">port</span>) =&gt;</span> server.listen(port)</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> webServer = createWebServer(<span class="function">(<span class="params">req, res</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="comment">// 这是我们最开始使用 http 模块的代码</span></span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;<span class="keyword">new</span> <span class="built_in">Date</span>().toISOString()&#125;</span> - <span class="subst">$&#123;req.method&#125;</span> <span class="subst">$&#123;req.url&#125;</span>`</span>);</span><br><span class="line">  res.setHeader(<span class="string">'Content-Type'</span>,<span class="string">'text/plain'</span>);</span><br><span class="line">  res.end(<span class="string">'Hello World!'</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">webServer.listen(<span class="number">3000</span>);</span><br></pre></td></tr></table></figure>
+<p><strong>该服务器代码不可用于商业生产。它的目的仅仅是帮助对 <code>streams</code> 和  <code>buffers</code> 的学习</strong></p>
+<p>大部分这里的代码含义应该都很清楚了，我们使用前面章节学习到的规则解析请求，返回响应。</p>
+<p>仅仅有一点点新增的内容：<code>Transfer-Encoding: chunked</code>，当我们不能提前知道响应的长度时很有用。你可以 <a href="https://en.wikipedia.org/wiki/Chunked_transfer_encoding" target="_blank" rel="noopener">在维基百科上查看它的内容</a></p>
+<hr>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>通过使用简单的模块，例如：<code>net，Stream，Buffer</code>，我们能够基于一个 TCP 服务器创建一个基本的 HTTP 服务器，实现一些解析逻辑。在过程中，我们学习一些内容关于 HTTP 请求和响应，可读写的 streams 和 buffers 的基础知识。</p>
+
+  </article>
+  <div class="random-toc-area">
+  <button class="btn-hide-toc btn-hide-toc-show" style="display: none" onclick="TOCToggle()">Show TOC</button>
+  <button class="btn-hide-toc btn-hide-toc-hide" onclick="TOCToggle()">Hide TOC</button>
+  <div class="random-toc">
+    <h2>Table of Content</h2>
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Node-js-内置的-http-模块"><span class="toc-text">Node.js 内置的 http 模块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#HTTP-解析"><span class="toc-text">HTTP 解析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#接受并且解析一个-HTTP-请求"><span class="toc-text">接受并且解析一个 HTTP 请求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol>
+  </div>
+</div>
+
+  
+<nav id="pagination">
+  
+
+  
+
+  
+    <a href="/2018/09/09/hello-world/" class="next">Next post Hello World &rarr;</a>
+  
+</nav>
+
+  <!-- JiaThis Button BEGIN -->
+
+<!-- JiaThis Button END -->
+
+
+      
+      
+    </div>
+  </div>
+
+  <div id="bottom-outer">
+    <div id="bottom-inner">
+      Site by John Doe using
+      <a href="http://hexo.io">Hexo</a> & <a href="https://github.com/stiekel/hexo-theme-random">Random</a>
+      <br>
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+
+<div id="user-card">
+  <div class="center-field">
+    <img class="avatar" src="http://7te9fe.com1.z0.glb.clouddn.com/default_avatar.jpg">
+    <p id="description"></p>
+    <ul class="social-icon">
+  
+  
+    <li>
+      <a href="https://github.com/stiekel/hexo-theme-random">
+        
+          <i class="icon iconfont github">&#xe606;</i>
+        
+      </a>
+    </li>
+  
+    <li>
+      <a href="https://coding.net/u/Stiekel">
+        
+          <i class="icon iconfont coding">&#xe607;</i>
+        
+      </a>
+    </li>
+  
+    <li>
+      <a href="https://twitter.com/SidCN">
+        
+          <i class="icon iconfont twitter">&#xe600;</i>
+        
+      </a>
+    </li>
+  
+    <li>
+      <a href="http://weibo.com/sidcn">
+        
+          <i class="icon iconfont weibo">&#xe602;</i>
+        
+      </a>
+    </li>
+  
+    <li>
+      <a href="http://www.douban.com/people/Stiekel/">
+        
+          <i class="icon iconfont douban">&#xe60f;</i>
+        
+      </a>
+    </li>
+  
+</ul>
+  </div>
+</div>
+
+
+<div id="btn-view">Hide</div>
+
+<script>
+// is trigger analytics / tongji script
+var isIgnoreHost = false;
+
+if(window && window.location && window.location.host) {
+  isIgnoreHost = ["localhost","127.0.0.1"].some(function(address){
+    return 0 === window.location.host.indexOf(address);
+  });
+}
+
+var isTriggerAnalytics = !( true && isIgnoreHost );
+
+</script>
+
+
+
+
+  
+  
+    <script src="/js/jquery-2.2.3.min.js"></script>
+  
+    <script src="/js/vegas.min.js"></script>
+  
+    <script src="/js/random.js"></script>
+  
+    <script src="/js/highlight.pack.js"></script>
+  
+    <script src="/js/jquery.mousewheel.pack.js"></script>
+  
+    <script src="/js/jquery.fancybox.pack.js"></script>
+  
+    <script src="/js/jquery.fancybox-thumbs.js"></script>
+  
+    <script src="/js/plyr.js"></script>
+  
+
+<script>
+
+  // fancybox
+  var backgroundImages = [];
+  
+  $('#post').each(function(i){
+    $(this).find('img').each(function(){
+      if ($(this).parent().hasClass('fancybox') || $(this).parent().hasClass('fancybox-thumb')) return;
+      var alt = this.alt || this.title;
+      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
+      $(this).wrap('<a href="' + this.src + '" title="' + alt + '" class="fancybox"></a>');
+    });
+    $(this).find('.fancybox').each(function(){
+      $(this).attr('rel', 'post' + i);
+    });
+  });
+  $(".fancybox").fancybox();
+
+var vegasConfig = {"preload­Image":true,"transition":["slideLeft2","slideRight2","flash2"],"timer":true,"delay":5000,"shuffle":true,"count":28};
+var unsplashConfig = {"gravity":"north"};
+// is show background images
+var turnoffBackgroundImage = false;
+
+
+
+  turnoffBackgroundImage = true;
+
+
+var backgroundColor = "34495E";
+
+$(".fancybox-thumb").fancybox({
+  prevEffect: 'none',
+  nextEffect: 'none',
+  helpers: {
+    title: {
+      type: 'outside'
+    },
+    thumbs: {
+      width: 50,
+      height: 50
+    }
+  }
+});
+
+// show video with plyr
+$(".video-container iframe").each(function(i){
+  var url = $(this).attr('src');
+  var id = url.split('/').pop();
+  var plyrContainer = document.createElement('div');
+  plyrContainer.className = 'plyr';
+  var plyrElement = document.createElement('div');
+  plyrElement.dataset.videoId = id;
+  switch(true) {
+    case url.search('youtube.com') >= 0:
+      plyrElement.dataset.type = 'youtube';
+      break;
+    case url.search('vimeo.com') >= 0:
+      plyrElement.dataset.type = 'vimeo';
+      break;
+    default:
+      return;
+  };
+  plyrContainer.appendChild(plyrElement);
+  $(this).parent().html(plyrContainer);
+});
+plyr.setup('.plyr', {iconUrl: '/css/sprite.svg'});
+</script>
+</body>
+</html>
+
